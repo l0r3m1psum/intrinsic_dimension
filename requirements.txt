@@ -1,0 +1,16 @@
+mpmath==1.2.1
+networkx==3.0b1
+numpy==1.23.4
+PyQt3D==5.15.5
+PyQt5==5.15.7
+PyQt5-sip==12.11.0
+PyQtChart==5.15.6
+PyQtDataVisualization==5.15.5
+PyQtNetworkAuth==5.15.5
+PyQtPurchasing==5.15.5
+PyQtWebEngine==5.15.6
+sympy==1.11.1
+TBB==0.2
+torch==1.14.0.dev20221119
+typing_extensions==4.3.0
+youtube-dl==2021.12.17
