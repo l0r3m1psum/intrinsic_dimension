@@ -42,4 +42,4 @@ D='-epochs 1 -patience 1 -lr 1 -dry' # dummy arguments
 # $py -data cifar -model fc -small -epochs 500 -patience 50 -lr 0.05
 # $py -data cifar -model lenet -small -epochs 200 -patience 50 -lr 0.005
 # $py -data cifar -model fc -proj sparse -intr 9000 -epochs 1000 -patience 1000 -lr 0.04 # TODO: TOO SLOW!
-# $py -data cifar -model lenet -proj sparse -intr 2900 -epochs 10 -patience 3 -lr 0.00002
+# $py -data cifar -model lenet -proj sparse -intr 2900 -epochs 10 -patience 3 -lr 0.00001
