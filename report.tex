@@ -1,0 +1,349 @@
+% rm -f report.bib && pdflatex report && bibtex report && pdflatex report && pdflatex report
+\documentclass[twocolumn]{article}
+
+\IfFileExists{hyperref.sty}{\usepackage[pdfborder={0 0 0}]{hyperref}}{\newcommand{\url}{\verb}}
+
+\title{Project 3: Training on Parameter Subspaces}
+\author{Diego Bellani}
+\date{2022}
+
+\pagenumbering{gobble}
+
+\begin{filecontents}[nosearch]{report.bib}
+@inproceedings{
+	intr,
+	title={Measuring the Intrinsic Dimension of Objective Landscapes},
+	author={Chunyuan Li and Heerad Farkhoor and Rosanne Liu and Jason Yosinski},
+	booktitle={International Conference on Learning Representations},
+	year={2018},
+	url={https://openreview.net/forum?id=ryup8-WCW},
+}
+@misc{
+	jgamper,
+	title   = "Intrinsic-dimensionality Pytorch",
+	author  = "Gamper, Jevgenij",
+	year    = "2020",
+	howpublished = "\url{https://github.com/jgamper/intrinsic-dimensionality}",
+	url     = "https://github.com/jgamper/intrinsic-dimensionality"
+}
+@misc{
+	mdda,
+	title  = "Intrinsic Dimension: Proof of Concept",
+	author = "Andrews, Martin",
+	year   = "2018",
+	howpublished = "\url{https://github.com/mdda/deep-learning-workshop/blob/master/notebooks/work-in-progress/IntrinsicDimension/}",
+	url    = "https://github.com/mdda/deep-learning-workshop/blob/master/notebooks/work-in-progress/IntrinsicDimension/IntrinsicDimension.ipynb"
+}
+@article{
+	mnist,
+	title={The mnist database of handwritten digit images for machine learning research},
+	author={Deng, Li},
+	journal={IEEE Signal Processing Magazine},
+	volume={29},
+	number={6},
+	pages={141--142},
+	year={2012},
+	publisher={IEEE}
+}
+@article{
+	lenet,
+	author={Lecun, Y. and Bottou, L. and Bengio, Y. and Haffner, P.},
+	journal={Proceedings of the IEEE},
+	title={Gradient-based learning applied to document recognition},
+	year={1998},
+	volume={86},
+	number={11},
+	pages={2278-2324}
+}
+@inproceedings{
+	aghajanyan-etal-2021-intrinsic,
+	title = "Intrinsic Dimensionality Explains the Effectiveness of Language Model Fine-Tuning",
+	author = "Aghajanyan, Armen  and Gupta, Sonal  and Zettlemoyer, Luke",
+	booktitle = "Proceedings of the 59th Annual Meeting of the Association for Computational Linguistics and the 11th International Joint Conference on Natural Language Processing (Volume 1: Long Papers)",
+	month = aug,
+	year = "2021",
+	address = "Online",
+	publisher = "Association for Computational Linguistics",
+	url = "https://aclanthology.org/2021.acl-long.568",
+	doi = "10.18653/v1/2021.acl-long.568",
+	pages = "7319--7328",
+}
+@misc{
+	blog1,
+	title = "The Intrinsic Dimension of Objective Landscapes",
+	author = "Carl Lemaire",
+	year = 2018,
+	month = may,
+	address = "Online",
+	howpublished ="\url{https://vitalab.github.io/article/2018/05/11/intrinsic-dimension-objective-landscapes.html}"
+}
+@misc{
+	blog2,
+	title = "Measuring the Intrinsic Dimension of Objective Landscapes (2018) - summary",
+	author = "Tom Roth",
+	year = 2020,
+	month = jan,
+	address = "Online",
+	howpublished = "\url{https://tomroth.com.au/notes/intdim/intdim/}"
+}
+@inproceedings{
+	fastfood,
+	title = {Fastfood - Approximating Kernel Expansions in Loglinear Time},
+	author = {Quoc Le and Tamas Sarlos and Alex Smola},
+	year = {2013},
+	booktitle = {30th International Conference on Machine Learning (ICML)}
+}
+@inproceedings{
+	sparse,
+	title = {Very sparse random projections},
+	author = {Ping Li and Trevor J. Hastie and Kenneth Ward Church},
+	booktitle = {Knowledge Discovery and Data Mining},
+	year = {2006}
+}
+@article{
+	lstm,
+	author = {Hochreiter, Sepp and Schmidhuber, Jürgen},
+	year = {1997},
+	month = {12},
+	pages = {1735-80},
+	title = {Long Short-term Memory},
+	volume = {9},
+	journal = {Neural computation}
+}
+@article{
+	trans,
+	author = {Vaswani, Ashish and Shazeer, Noam and Parmar, Niki and Uszkoreit, Jakob and Jones, Llion and Gomez, Aidan and Kaiser, Lukasz and Polosukhin, Illia},
+	year = {2017},
+	month = {06},
+	pages = {},
+	title = {Attention Is All You Need}
+}
+@article{
+	diffusion,
+	title={Denoising Diffusion Probabilistic Models},
+	author={Jonathan Ho and Ajay Jain and Pieter Abbeel},
+	year={2020},
+	journal={arXiv preprint arxiv:2006.11239}
+}
+@inproceedings{
+	gan,
+	title={Generative adversarial nets},
+	author={Goodfellow, Ian and Pouget-Abadie, Jean and Mirza, Mehdi and Xu, Bing and Warde-Farley, David and Ozair, Sherjil and Courville, Aaron and Bengio, Yoshua},
+	booktitle={Advances in neural information processing systems},
+	pages={2672--2680},
+	year={2014}
+}
+@misc{
+	python,
+	title = {Sunsetting Python 2},
+	author = {Python Software Foundation},
+	address = "Online",
+	howpublished = "\url{https://www.python.org/doc/sunset-python-2/}"
+}
+\end{filecontents}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Li et al.~\cite{intr} proposed a way to determine how many parameters are really
+needed to `solve' a task with a neural network by training it in a randomly
+oriented subspace of their native parameter space. They call \emph{intrinsic
+dimension of the objective (or loss) landscape}, the smaller dimension of this
+subspace at which `solutions' first appear.
+
+We started by reproducing part of the result that they showed. Than we reported
+on the main properties of neural networks trained on a subspace of their
+intrinsic dimension, compared them to standard smaller neural networks, tested
+their performance for different subspace dimensions and tested two different
+ways of projecting the randomly oriented subspace to the native parameter space.
+\end{abstract}
+
+\section{Introduction}
+The number of trainable parameters required to solve a problem with a given
+neural network can be intuitively used as a rough estimate of how difficult it
+is to solve for that specific architecture. The intrinsic dimension of the
+objective landscape, the authors claim, can help us find the minimum number of
+trainable parameters needed for a task and then allow us to do some comparison
+across different architectures and learning strategies like supervised and
+reinforcement learning.
+
+To give two concrete examples the authors found out that solving
+MNIST~\cite{mnist} with LeNet~\cite{lenet} is approximately two times easier
+than solving it with a fully-connected network and that playing Atari Pong from
+pixels is 100 times harder than solving MNIST.
+
+The author consider a problem `solved' if a trained model reaches a certain
+accuracy. In the paper for MNIST the target accuracy is 90\% while for CIFAR-10
+is just above 50\%.
+
+The way in which we find the \emph{intrinsic dimension}\footnote{We are going to
+use this shorter name to refer to the `intrinsic dimension of the objective
+landscape'.} is relatively simple, we first generate a random projection matrix
+$P_i$\footnote{Other kinds of projection matrices can be used here but for
+simplicity we say a random one.} and an initial value $\theta_i^{(D_i)}$ for
+each parameter in our network, were $D_i$ is the native dimension of that
+parameter\footnote{Again for simplicity here we assume that all parameters of
+the network (weights and biases) are vectors, because we can easily reshape
+vectors in matrix form.}. Now let $D = \sum_i D_i$, then we generate a
+\emph{single trainable parameter} $\theta^{(d)}$ for the entire network, where
+$d<D$. At this point we can use the following formula
+%
+\begin{displaymath}
+	\theta_i^{'(D_i)} =\theta_i^{(D_i)} + P_i \theta^{(d)}
+\end{displaymath}
+%
+to offset the starting point of each parameter by a learned amount.
+
+To find the intrinsic dimension we simply start to train the network with a
+small $d$ and gradually increase it until solution starts to appear. By this the
+authors mean that the network reaches 90\% of the accuracy of its normally
+trained version, which they call the $d_{\mathrm{int}90}$ value.
+
+\section{Related Works}
+We did not do a systematic literature review for this project so here we are
+just going to report what we have found with a shallow search on the topic. Also
+we do not know of any other novel method of measuring the difficulty of a task
+for a given architecture.
+
+First we looked for other attempt at reproducing the results of the paper. We
+only found two, a proof of concept by Andrews~\cite{mdda} and a failed attempt
+by Gamper~\cite{jgamper}. So not a lot of serious attempts at reproduction were
+made public.
+
+A quick look at the literature revealed just another paper by Aghajanyan et
+al.~\cite{aghajanyan-etal-2021-intrinsic} that used the method described by the
+authors, even though the paper has some citations. Therefore, to a shallow look,
+it does not seem that this metric is used in the academic circles.
+
+Finally we found a few blog posts that tried to explain the content of the
+article. Most of them were just public notes from other scholars like Lemaire
+and Roth~\cite{blog1, blog2}.
+
+\section{Method}
+We started by reproducing a subset of the results in the original paper, some
+problems encountered along the way are described in appendix \ref{app:troubles}.
+We did not tackle the reinforcement learning results because they were out of
+our competences.
+
+Our work was focused on fully connected and convolutional neural networks
+(LeNet5). The task were MNIST and CIFAR-10.
+
+After having reproduced what was possible we proceeded to test the performance
+of a smaller neural networks. To see if the intrinsic dimension found was really
+the minimum numbers of parameter needed to do the given task with the chosen
+architecture.
+
+In the original article the authors test two other ways of projecting the
+trainable parameter, namely the FastFood transform~\cite{fastfood} and the
+sparse matrix projection~\cite{sparse}.
+
+Due to hardware limitations reproducing the results for the FastFood transform
+was not possible, therefore we only report on sparse matrix projections.
+
+All the experiment we run on a 15-inch 2018 MacBook Pro with a 2,2 GHz Intel
+Core i7 6 core with macOS Ventura 13.0.1. We used PyTorch \texttt{1.14.0.dev20221119}. All training and inference was done on the CPU because the
+GPU backhand on macOS is still slower than the CPU.
+
+\section{Results}
+We report in table \ref{tab:params} the number of trainable parameters needed to
+reach the same accuracy described in the paper, for the ``normal'' models, and
+the $d_{\mathrm{int}90}$ value for both the randomly projected and small
+architectures. We put an X near the results that we were not able to reproduce
+due to hardware limitations.
+
+The only intrinsic dimension we have found to be different from the one reported
+in the paper is the one for IntrLeNet with the MNIST dataset, 300 instead of
+290.
+
+Using random projection did not allowed us to reproduce IntrLeNet with the MNIST
+dataset either. Changing the projection used does not change the number of
+trainable parameters, therefore is not reported in table~\ref{tab:params}.
+
+\section{Conclusions}
+Training networks on random subspaces is quite tricky, we had to get some
+hyper-parameter just right to get it to learn and even when we got them right,
+is some cases, we had to wait a few epochs before we were able to see some
+improvements.
+
+Even increasing the intrinsic dimension a bit does not makes things easier. Of
+course the closer the intrinsic dimension gets to the original number of
+parameters the easier the network becomes to train but it also gets slower and
+slower.
+
+Using dense random projection makes the training quite slow, but using sparse
+random projections make the training really fast. The number of epochs required
+goes from numbers in the thousands to no more than ten! This kind of projection
+works so well that we strongly advise to use it in place of all the others. If
+the reader needs to find the intrinsic dimension of a model sparse random
+projection is definitely the way to go.
+
+The method seems unable to find the smallest numbers of trainable parameters
+needed to solve a problem for all architectures. We were able to archive the
+same accuracy with a standard smaller neural network in the case of
+convolutional networks. It may be useful to find a rough upper bound of the
+numbers of parameters needed for a given network.
+
+This method gives useful insights for fully-connected neural networks because it
+gives us a number of parameters that is lower than the minimum possible i.e. the
+intrinsic dimension for MNIST is 750 but just the input layer for that model has
+$28 \cdot 28 = 784$ parameters. This may be an hint that there is a better way
+to solve that problem. In the case of fully-connected networks the better method
+is convolutional networks which does not look at the whole input at once. It may
+tell us that there is still room for improvement for other models.
+
+In conclusion we think that this method may be useful to see if the model used
+to solve a given problem is `optimal' in the number of parameters or not. It
+might be interesting for example to see for example what is the intrinsic
+dimension of an LSTM~\cite{lstm} compared to a transformer~\cite{trans} for NLP
+tasks or to compare diffusion models~\cite{diffusion} with GANs~\cite{gan} for
+generative
+tasks.
+
+\begin{table}
+	\centering
+	\begin{tabular}{r|r|r|}
+	\cline{2-3}
+	                                 & MNIST   & CIFAR-10 \\
+	\hline
+	\multicolumn{1}{|r|}{FC}         & 199,210 & 656,810 \\
+	\multicolumn{1}{|r|}{LeNet}      & 44,426  & 62,006  \\
+	\multicolumn{1}{|r|}{IntrFC}     & 750     & X       \\
+	\multicolumn{1}{|r|}{IntrLeNet}  & 300     & 2,900   \\
+	\multicolumn{1}{|r|}{SmallFC}    & 1,600   & 46,495  \\
+	\multicolumn{1}{|r|}{SmallLeNet} & 222     & 2,186   \\
+	\hline
+	\end{tabular}
+	\caption{Numbers of trainable parameters needed by the various architectures
+	to `solve' the two problems.}
+	\label{tab:params}
+\end{table}
+
+\clearpage
+
+\appendix
+
+\section{Appendix}
+
+\subsection{The pains of reproduction}\label{app:troubles}
+As of today is hard to run their code due to the outdated version of Python and
+Tensorflow used.  The authors implemented their ideas in Python~2.7, the paper
+was published in 2018, by that point it was already known by 10 years (!) that
+python 2.7 was going to be deprecated~\cite{python}. This shows no will in the
+long term reproducibility of their code.
+
+The paper is absolutely not clear about the fact that there should be only one
+$\theta^{(d)}$ in the entire network. We got this fact wrong and slowed our
+progresses in reproducing the results because using multiple trainable
+$\theta^{(d)}$ also works in some cases!
+
+To add insult to the injury their code is really convoluted, to say the least.
+To multiply two tensors and sum another one, i.e. doing the projection, the
+authors feel it is necessary to spread their code among multiple classes. This
+makes it much more harder than it should to read their code and using it as an
+eventual reference.
+
+\bibliographystyle{plain}
+\bibliography{report}
+
+\end{document}
