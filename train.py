@@ -153,28 +153,18 @@ def read_mnist_labels(buf: memoryview) -> memoryview:
 # Models #######################################################################
 
 def make_sparse_proj_matrix(nrows: int, ncols: int, s: float) -> torch.Tensor:
-	# ugly ugly function
-	import random
-	import math
-	random.seed(42)
+	indices = torch.nonzero(torch.rand(nrows*ncols) < 1/s).view(-1)
+	row_col_indices = torch.stack([indices // ncols, indices % ncols])
 
-	col_indices = []
-	row_indices = []
-	for i in range(nrows*ncols):
-		if random.uniform(0, 1) < 1/s:
-			col_indices.append(i%ncols)
-			row_indices.append(i//ncols)
-
-	values = [-math.sqrt(s) if random.uniform(0, 1) < .5 else math.sqrt(s)
-		for _ in col_indices]
+	sqrt = (torch.ones_like(indices)*s).sqrt()
+	values = torch.where(torch.rand(indices.shape) < .5, -sqrt, sqrt)
 
 	size = (nrows, ncols)
-	res = torch.sparse_coo_tensor([row_indices, col_indices], values, size) \
-		.to_sparse_csr()
+	res = torch.sparse_coo_tensor(row_col_indices, values, size).to_sparse_csr()
 	return res
 
 @torch.no_grad()
-def init_projection(param: torch.Tensor) -> None:
+def init_dense_projection(param: torch.Tensor) -> None:
 	if __debug__: initial_shape = param.shape
 	torch.nn.init.uniform_(param)
 	# Normalizing columns to unit length.
@@ -239,7 +229,7 @@ class IntrLinear(torch.nn.Module):
 
 	def reset_parameters(self) -> None:
 		if self.proj_kind == 'dense':
-			init_projection(self.project_weight)
+			init_dense_projection(self.project_weight)
 		else:
 			self.project_weight = make_sparse_proj_matrix(
 				self.project_weight.shape[0], self.project_weight.shape[1],
@@ -247,7 +237,7 @@ class IntrLinear(torch.nn.Module):
 		torch.nn.init.kaiming_uniform_(self.initial_weight, a=math.sqrt(5))
 		if self.bias is not None:
 			if self.proj_kind == 'dense':
-				init_projection(self.project_bias)
+				init_dense_projection(self.project_bias)
 			else:
 				self.project_bias = make_sparse_proj_matrix(
 					self.project_bias.shape[0], self.project_bias.shape[1],
@@ -359,7 +349,7 @@ class IntrConv2d(torch.nn.Module):
 
 	def reset_parameters(self):
 		if self.proj_kind == 'dense':
-			init_projection(self.project_weight)
+			init_dense_projection(self.project_weight)
 		else:
 			self.project_weight = make_sparse_proj_matrix(
 				self.project_weight.shape[0], self.project_weight.shape[1],
@@ -367,7 +357,7 @@ class IntrConv2d(torch.nn.Module):
 		torch.nn.init.kaiming_uniform_(self.initial_weight, a=math.sqrt(5))
 		if self.bias is not None:
 			if self.proj_kind == 'dense':
-				init_projection(self.project_bias)
+				init_dense_projection(self.project_bias)
 			else:
 				self.project_bias = make_sparse_proj_matrix(
 					self.project_bias.shape[0], self.project_bias.shape[1],
