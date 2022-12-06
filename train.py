@@ -1,3 +1,12 @@
+'''This is the code used to reprocude the results of the original authors.
+
+The way in which sparse projection matrices are created inside the Modules is
+hacky, because PyTorch does not support inplace modifications to sparse
+matrices, we cannot just create an empty sparse tensor with torch.empty(*size,
+layout=torch.sparse_csr). This can create problems with the register_buffer API
+(?) and the moving (from cpu to gpu) and the serialization of the model. This
+way is also less efficient.'''
+
 import argparse
 import functools
 import gzip
@@ -143,7 +152,7 @@ def read_mnist_labels(buf: memoryview) -> memoryview:
 
 # Models #######################################################################
 
-def make_sparse_proj_matrix(nrows: int, ncols: int, s: int) -> torch.Tensor:
+def make_sparse_proj_matrix(nrows: int, ncols: int, s: float) -> torch.Tensor:
 	# ugly ugly function
 	import random
 	import math
@@ -201,6 +210,7 @@ class IntrLinear(torch.nn.Module):
 	def __init__(
 		self,
 		current: torch.nn.Parameter,
+		proj_kind: str,
 		in_features: int,
 		out_features: int,
 		bias: bool = True,
@@ -210,6 +220,7 @@ class IntrLinear(torch.nn.Module):
 		factory_kwargs = {'device': device, 'dtype': dtype}
 		super().__init__()
 		assert current.requires_grad
+		self.proj_kind = proj_kind
 		intr_dim = current.size()[1]
 		self.register_parameter('current', current)
 		self.register_buffer('initial_weight',
@@ -227,10 +238,20 @@ class IntrLinear(torch.nn.Module):
 		self.reset_parameters()
 
 	def reset_parameters(self) -> None:
-		init_projection(self.project_weight)
+		if self.proj_kind == 'dense':
+			init_projection(self.project_weight)
+		else:
+			self.project_weight = make_sparse_proj_matrix(
+				self.project_weight.shape[0], self.project_weight.shape[1],
+				self.project_weight.shape[1] ** .5)
 		torch.nn.init.kaiming_uniform_(self.initial_weight, a=math.sqrt(5))
 		if self.bias is not None:
-			init_projection(self.project_bias)
+			if self.proj_kind == 'dense':
+				init_projection(self.project_bias)
+			else:
+				self.project_bias = make_sparse_proj_matrix(
+					self.project_bias.shape[0], self.project_bias.shape[1],
+					self.project_bias.shape[1] ** .5)
 			# NOTE: this is a bit different from how torch.nn.Linear does it.
 			torch.nn.init.uniform_(self.initial_bias)
 
@@ -244,10 +265,13 @@ class IntrLinear(torch.nn.Module):
 			projected_bias = None
 		return torch.nn.functional.linear(input, projected_weight, projected_bias)
 
+	# TODO: implement __repr__ to see arguments used to make the Module.
+
 class IntrConv2d(torch.nn.Module):
 	def __init__(
 			self,
 			current: torch.nn.Parameter,
+			proj_kind: str,
 			in_channels: int,
 			out_channels: int,
 			kernel_size: tuple[int, ...],
@@ -313,6 +337,7 @@ class IntrConv2d(torch.nn.Module):
 
 		# My code starts here.
 		assert len(kernel_size) == 2
+		self.proj_kind = proj_kind
 		a, b = (in_channels, out_channels // groups) if transposed \
 			else (out_channels, in_channels // groups)
 		intr_dim = current.size()[1]
@@ -333,10 +358,20 @@ class IntrConv2d(torch.nn.Module):
 		self.reset_parameters()
 
 	def reset_parameters(self):
-		init_projection(self.project_weight)
+		if self.proj_kind == 'dense':
+			init_projection(self.project_weight)
+		else:
+			self.project_weight = make_sparse_proj_matrix(
+				self.project_weight.shape[0], self.project_weight.shape[1],
+				self.project_weight.shape[1] ** .5)
 		torch.nn.init.kaiming_uniform_(self.initial_weight, a=math.sqrt(5))
 		if self.bias is not None:
-			init_projection(self.project_bias)
+			if self.proj_kind == 'dense':
+				init_projection(self.project_bias)
+			else:
+				self.project_bias = make_sparse_proj_matrix(
+					self.project_bias.shape[0], self.project_bias.shape[1],
+					self.project_bias.shape[1] ** .5)
 			# NOTE: this is a bit different from how torch.nn.modules.conv._ConvNd does it.
 			torch.nn.init.uniform_(self.initial_bias)
 
@@ -351,8 +386,11 @@ class IntrConv2d(torch.nn.Module):
 		return torch.nn.functional.conv2d(X, projected_weight, projected_bias,
 			self.stride, self.padding, self.dilation, self.groups)
 
+	# TODO: implement __repr__ to see arguments used to make the Module.
+
 def make_fcnet(
 		intr_dim: int,
+		proj_kind: str,
 		n_inputs: int,
 		width: int,
 		depth: int,
@@ -360,7 +398,7 @@ def make_fcnet(
 	) -> torch.nn.Module:
 	if intr_dim > 0:
 		current = torch.nn.Parameter(torch.zeros((1, intr_dim), requires_grad=True))
-		Linear = functools.partial(IntrLinear, current)
+		Linear = functools.partial(IntrLinear, current, proj_kind)
 	else:
 		Linear = torch.nn.Linear
 
@@ -379,14 +417,17 @@ def make_fcnet(
 
 def make_lenet(
 		intr_dim: int,
+		proj_kind: str,
 		n_channels: int,
 		n_classes: int,
 		n_rows: int,
 		n_cols: int
 	) -> torch.nn.Module:
 	current = torch.nn.Parameter(torch.zeros((1, intr_dim), requires_grad=True))
-	Conv2d = functools.partial(IntrConv2d, current) if intr_dim else torch.nn.Conv2d
-	Linear = functools.partial(IntrLinear, current) if intr_dim else torch.nn.Linear
+	Conv2d = functools.partial(IntrConv2d, current, proj_kind) if intr_dim \
+		else torch.nn.Conv2d
+	Linear = functools.partial(IntrLinear, current, proj_kind) if intr_dim \
+		else torch.nn.Linear
 	# After all Conv2d and MaxPool2d
 	rows = n_rows - 12
 	cols = n_cols - 12
@@ -525,6 +566,7 @@ def main() -> int:
 	parser.add_argument('-intr', action='store', type=int, default=0)
 	parser.add_argument('-batch', action='store', type=int, default=128)
 	parser.add_argument('-device', action='store', choices=['cpu', 'cuda', 'mps'], default='cpu')
+	parser.add_argument('-proj', action='store', choices=['dense', 'sparse', 'fastfood'], default='dense')
 	parser.add_argument('-small', action='store_true')
 	parser.add_argument('-random', action='store_true')
 	parser.add_argument('-dry', action='store_true')
@@ -532,6 +574,9 @@ def main() -> int:
 	parser.add_argument('-load', action='store_true')
 
 	args = parser.parse_args()
+
+	if args.proj == 'fastfood':
+		raise NotImplementedError('The FastFood projection has not been implemented.')
 
 	seed = int.from_bytes(os.urandom(4), 'big', signed=False) if args.random \
 		else 42
@@ -652,11 +697,11 @@ def main() -> int:
 		depth = 1
 		if args.small:
 			if args.data == 'mnist':
-				net = make_fcnet(0, n_pixels, 3, 0, n_classes).to(device)
+				net = make_fcnet(0, args.proj, n_pixels, 3, 0, n_classes).to(device)
 			else:
-				net = make_fcnet(0, n_pixels, 15, 1, n_classes).to(device)
+				net = make_fcnet(0, args.proj, n_pixels, 15, 1, n_classes).to(device)
 		else:
-			net = make_fcnet(args.intr, n_pixels, width, depth, n_classes).to(device)
+			net = make_fcnet(args.intr, args.proj, n_pixels, width, depth, n_classes).to(device)
 		del width, depth
 	elif args.model == 'lenet':
 		logit_normalizer = torch.nn.Identity()
@@ -665,7 +710,7 @@ def main() -> int:
 		if args.small:
 			net = make_small_lenet(n_channels, n_classes, n_rows, n_cols).to(device)
 		else:
-			net = make_lenet(args.intr, n_channels, n_classes, n_rows, n_cols).to(device)
+			net = make_lenet(args.intr, args.proj, n_channels, n_classes, n_rows, n_cols).to(device)
 	else:
 		assert False
 

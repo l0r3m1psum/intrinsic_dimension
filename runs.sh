@@ -24,7 +24,6 @@ D='-epochs 1 -patience 1 -lr 1 -dry' # dummy arguments
 # $P -data cifar -model fc    -small     $D | verify 46495  >/dev/null 2&>1
 # $P -data cifar -model lenet -small     $D | verify 2186   >/dev/null 2&>1
 
-
 # This group should reach 90% accuracy -> 81%
 # $py -data mnist -model fc -epochs 5 -patience 2 -lr 1
 # $py -data mnist -model fc -intr 750 -epochs 1000 -patience 1000 -lr 0.04 # SLOW!
@@ -32,6 +31,8 @@ D='-epochs 1 -patience 1 -lr 1 -dry' # dummy arguments
 # $py -data mnist -model lenet -intr 300 -epochs 500 -patience 30 -lr 0.004
 # $py -data mnist -model fc -small -epochs 250 -patience 20 -lr 0.5
 # $py -data mnist -model lenet -small -epochs 10 -patience 2 -lr 0.004
+# $py -data mnist -model fc -proj sparse -intr 750 -epochs 2 -patience 1 -lr 0.0004
+# $py -data mnist -model lenet -proj sparse -intr 300 -epochs 5 -patience 3 -lr 0.00004
 
 # This group should only go above 50% accuracy. -> 45%
 # $py -data cifar -model fc -epochs 600 -patience 30 -lr 1 # 0.02
@@ -40,3 +41,5 @@ D='-epochs 1 -patience 1 -lr 1 -dry' # dummy arguments
 # $py -data cifar -model lenet -intr 2900 -epochs 2000 -patience 1000 -lr 0.0002 # SLOW!
 # $py -data cifar -model fc -small -epochs 500 -patience 50 -lr 0.05
 # $py -data cifar -model lenet -small -epochs 200 -patience 50 -lr 0.005
+# $py -data cifar -model fc -proj sparse -intr 9000 -epochs 1000 -patience 1000 -lr 0.04 # TODO: TOO SLOW!
+# $py -data cifar -model lenet -proj sparse -intr 2900 -epochs 10 -patience 3 -lr 0.00002
