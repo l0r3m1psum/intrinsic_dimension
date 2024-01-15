@@ -1,4 +1,20 @@
-# Project 03: Training on parameters subspaces
+# Training on parameters subspaces
+
+This project purpose is to reproduce some of the results in [Measuring the
+Intrinsic Dimension of Objective Landscapes](https://arxiv.org/abs/1804.08838)
+and then:
+
+  1. report on their main properties compared to standard smaller neural network
+  2. test experimentally their performance for different subspace dimensions
+  3. test experimentally their performance for different families of P
+
+To see the resuts of the experiments look at the commented lines in `runs.sh`.
+The data necessary for training will be downloaded automatically with the first
+run and then read from the filesystem.
+
+A more detailed description of the project is in `report.tex`.
+
+# Resources
 
 Stuff from the authors:
   * [arXiv](https://arxiv.org/abs/1804.08838)
@@ -14,40 +30,14 @@ Stuff from other people:
   * [SlideShare](https://www.slideshare.net/WuhyunRicoShin/paper-review-measuring-the-intrinsic-dimension-of-objective-landscapes)
   * A non particularly revealing [article](https://tomroth.com.au/notes/intdim/intdim/)
 
-# Designing the experiments
+## Sparse Random Projection
 
-I was asked to:
-  1. report on their main properties compared to standard smaller neural network
-  2. test experimentally their performance for different subspace dimensions
-  3. test experimentally their performance for different families of P
-Points 2 and 3 are basically the same as reproducing the results of the original
-paper. For point 1 a good comparison may be between a neural network with the 
-same number of parameters as the intrinsic dimension of another.
+  * [Scikit-learn](https://scikit-learn.org/stable/modules/generated/sklearn.random_projection.SparseRandomProjection.html)
+  * [Very Sparse Random Projections](https://hastie.su.domains/Papers/Ping/KDD06_rp.pdf)
+  * [Database-friently Random projections](http://people.ee.duke.edu/~lcarin/p93.pdf)
 
-They in the paper did:
-  * FC and ConvNet network on MNIST
-  * FC and ConvNet network on CIFAR-10
-  * Some stuff on reinforcement learning
-  * Used the Fastfood transform.
+## FastFood transform
 
-Multivariate data (i.e. data in tabular format as in one row per observation) is
-ideal for feed forward neural network.
-
-The convolutional network I'll implement is LeNet.
-
-The [CIFAR-10](https://www.cs.toronto.edu/~kriz/cifar.html) dataset.
-The [MNIST](http://yann.lecun.com/exdb/mnist/) dataset.
-
-https://youtube.com/watch?v=O2wJ3tkc-TU common mistakes
-
-# Sparse Random Projection
-https://scikit-learn.org/stable/modules/generated/sklearn.random_projection.SparseRandomProjection.html
-
-https://hastie.su.domains/Papers/Ping/KDD06_rp.pdf
-http://people.ee.duke.edu/~lcarin/p93.pdf
-
-# FastFood transform
-http://proceedings.mlr.press/v28/le13.pdf
-
-https://scikit-learn-extra.readthedocs.io/en/stable/generated/sklearn_extra.kernel_approximation.Fastfood.html
-https://scikit-learn-extra.readthedocs.io/en/stable/auto_examples/kernel_approximation/plot_digits_classification_fastfood.html
+  * [Fastfood — Approximating Kernel Expansions in Loglinear Time](http://proceedings.mlr.press/v28/le13.pdf)
+  * [Scikit-learn](https://scikit-learn-extra.readthedocs.io/en/stable/generated/sklearn_extra.kernel_approximation.Fastfood.html)
+  * [Scikit-learn fastfood digits](https://scikit-learn-extra.readthedocs.io/en/stable/auto_examples/kernel_approximation/plot_digits_classification_fastfood.html)
